@@ -1,17 +1,25 @@
 # cpy-333
-ffrom abc import ABC, abstractmethod
+import math
+from abc import ABC, abstractmethod
+
+class InvalidTransactionError(Exception):
+    """Exception raised for invalid transaction attributes, such as a zero or negative amount."""
+    pass
 
 class Transaction(ABC):
     def __init__(self, city, date, time, amount, status):
-        self._city = city
-        self._date = date 
-        self._time = time
-        self._amount = amount
-        self._status = status
+        self.city = city
+        self.date = date 
+        self.time = time
+        self.amount = amount
+        self.status = status
 
     @abstractmethod
     def get_net_impact(self) -> float:
-        pass
+        """
+        Post-condition: Returns the mathematical net impact of the transaction as a float.
+        """
+       
 
     @property
     def city(self):
@@ -27,8 +35,8 @@ class Transaction(ABC):
 
     @date.setter
     def date(self, value):
-        if not value & value < 0:
-            raise ValueError("Date cannot be empty or date should be greater than zero")
+        if not value:
+            raise ValueError("Date cannot be empty")
         self._date = value
 
     @property
@@ -47,22 +55,49 @@ class Transaction(ABC):
 
     @amount.setter
     def amount(self, value):
-        if value < 0:
-            raise ValueError("Value cannot be zero or negative")
-        self._amount = value
+        """
+        Pre-condition: amount > 0
+        """
+        parsed_amount = float(value)
+        # --- EDITED: Added math.isfinite() to block "nan" and "inf" from sneaking past the check ---
+        if not math.isfinite(parsed_amount) or parsed_amount <= 0:
+            raise InvalidTransactionError("Amount must be a finite number greater than zero")
+        self._amount = parsed_amount
     
 
     @property
     def status(self):
         return self._status
 
-    @time.setter
-    def time(self, value):
+    @status.setter
+    def status(self, value):
         self._status = value
 
     def __str__(self):
         return f"Transaction({self.city}, {self.date}, {self.time}, ${self.amount}, {self.status})"
 
 
-t1 = Transaction("Karachi", "2026-10-18", "09:15:00", 100, "Completed")
-print(t1)
+class CreditTransaction(Transaction):
+    # --- EDITED: Added () after super so it correctly calls the parent class ---
+    def __init__(self, city, date, time, amount, status):
+        super().__init__(city, date, time, amount, status) 
+
+    def get_net_impact(self) -> float:
+        """
+        Post-condition: Returns the net impact as a positive float representing an inflow.
+        """
+        return self.amount
+
+class DebitTransaction(Transaction):
+    # --- EDITED: Added () after super here as well ---
+    def __init__(self, city, date, time, amount, status):
+        super().__init__(city, date, time, amount, status)
+
+    def get_net_impact(self) -> float:
+        """
+        # --- EDITED: Changed the word 'positive' to 'negative' to match the -self.amount math ---
+        Post-condition: Returns the net impact as a negative float representing an outflow.
+        """
+        return -self.amount
+
+
