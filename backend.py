@@ -74,11 +74,10 @@ class Transaction(ABC):
         self._status = value
 
     def __str__(self):
-        return f"Transaction({self.city}, {self.date}, {self.time}, ${self.amount}, {self.status})"
+        return f"Transaction({self.city}, {self.date}, {self.time}, PKR {self.amount}, {self.status})"
 
 
 class CreditTransaction(Transaction):
-    # --- EDITED: Added () after super so it correctly calls the parent class ---
     def __init__(self, city, date, time, amount, status):
         super().__init__(city, date, time, amount, status) 
 
@@ -89,7 +88,6 @@ class CreditTransaction(Transaction):
         return self.amount
 
 class DebitTransaction(Transaction):
-    # --- EDITED: Added () after super here as well ---
     def __init__(self, city, date, time, amount, status):
         super().__init__(city, date, time, amount, status)
 
