@@ -1,4 +1,4 @@
-from backend import Transaction, CreditTransaction, DebitTransaction, InvalidTransactionError
+from backend import Transaction, CreditTransaction, DebitTransaction, InvalidTransactionError, FileLoader
 try:
     tr = Transaction("Karachi", "2026-10-18", "09:15:00", 100, "Completed")
 except TypeError as e:
@@ -44,6 +44,12 @@ except InvalidTransactionError as e:
 t1.status = "Failed"
 print(f"Status for T1 is now: {t1.status}")
 print(f"Time is still: {t1.time}")
+
+
+try:
+    loader = FileLoader()
+except TypeError as e:
+    print("Successfully rasied type error", e)
 
 
 

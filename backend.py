@@ -1,5 +1,7 @@
 # cpy-333
 import math
+import csv
+import json
 from abc import ABC, abstractmethod
 
 class InvalidTransactionError(Exception):
@@ -19,7 +21,6 @@ class Transaction(ABC):
         """
         Post-condition: Returns the mathematical net impact of the transaction as a float.
         """
-       
 
     @property
     def city(self):
@@ -98,4 +99,20 @@ class DebitTransaction(Transaction):
         """
         return -self.amount
 
+
+class FileLoader(ABC):
+    """Abstraction base class for loading adn parsing trasnaction file"""
+
+
+    def __init__(self):
+        self.skipped_count = 0
+
+    @abstractmethod
+    def parse_file(self, filepath: str) -> list[Transaction]:
+        """
+        Parse a file at the given filepath and extract transaction records.
+
+        Subclasses must implement this method and return a list of Transaction
+        objects parsed from the specified file.
+        """
 
