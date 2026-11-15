@@ -1,4 +1,12 @@
-from backend import Transaction, CreditTransaction, DebitTransaction, InvalidTransactionError, FileLoader
+from backend import (Transaction, 
+                     CreditTransaction, 
+                     DebitTransaction, 
+                     InvalidTransactionError, 
+                     FileLoader,
+                     CSVLoader,
+                     JSONLOADER,
+                     )
+
 try:
     tr = Transaction("Karachi", "2026-10-18", "09:15:00", 100, "Completed")
 except TypeError as e:
@@ -52,4 +60,13 @@ except TypeError as e:
     print("Successfully rasied type error", e)
 
 
+csv_loader = CSVLoader()
+csv_txs = csv_loader.parse_file("data/Transactions.csv")
+print(f"CSV Loaded: {len(csv_txs)}, Skipped: {csv_loader.skipped_count}")
 
+#JsoN
+json_loader = JSONLOADER()
+json_txs = json_loader.parse_file("data/Transactions.json")
+print(f"JSON Loaded: {len(json_txs)}, Skipped: {json_loader.skipped_count}")
+
+# XXXXXXXXXXXXXXXXXXXX -----------------------------  XXXXXXXXXXXXXXXXXXXXXXX

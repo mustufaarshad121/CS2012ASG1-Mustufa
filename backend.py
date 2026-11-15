@@ -4,9 +4,11 @@ import csv
 import json
 from abc import ABC, abstractmethod
 
+
 class InvalidTransactionError(Exception):
     """Exception raised for invalid transaction attributes, such as a zero or negative amount."""
     pass
+
 
 class Transaction(ABC):
     def __init__(self, city, date, time, amount, status):
@@ -60,11 +62,9 @@ class Transaction(ABC):
         Pre-condition: amount > 0
         """
         parsed_amount = float(value)
-        # --- EDITED: Added math.isfinite() to block "nan" and "inf" from sneaking past the check ---
         if not math.isfinite(parsed_amount) or parsed_amount <= 0:
             raise InvalidTransactionError("Amount must be a finite number greater than zero")
         self._amount = parsed_amount
-    
 
     @property
     def status(self):
@@ -88,21 +88,20 @@ class CreditTransaction(Transaction):
         """
         return self.amount
 
+
 class DebitTransaction(Transaction):
     def __init__(self, city, date, time, amount, status):
         super().__init__(city, date, time, amount, status)
 
     def get_net_impact(self) -> float:
         """
-        # --- EDITED: Changed the word 'positive' to 'negative' to match the -self.amount math ---
         Post-condition: Returns the net impact as a negative float representing an outflow.
         """
         return -self.amount
 
 
 class FileLoader(ABC):
-    """Abstraction base class for loading adn parsing trasnaction file"""
-
+    """Abstract base class for loading and parsing transaction files."""
 
     def __init__(self):
         self.skipped_count = 0
@@ -116,3 +115,71 @@ class FileLoader(ABC):
         objects parsed from the specified file.
         """
 
+    def _build_transaction(self, row: dict) -> Transaction:
+        """Converts a raw dictionary record into a CreditTransaction or DebitTransaction."""
+        if not isinstance(row, dict):
+            raise TypeError("Record must be a dictionary")
+
+        tx_type = str(row["Type"]).strip().title()
+        city = row["City"]
+        date = row["Date"]
+        time = row["Time"]
+        amount = row["Amount"]
+        status = row["Status"]
+
+        if tx_type == "Credit":
+            return CreditTransaction(city, date, time, amount, status)
+        elif tx_type == "Debit":
+            return DebitTransaction(city, date, time, amount, status)
+        else:
+            raise ValueError(f"Invalid transaction type: {tx_type}")
+
+
+class CSVLoader(FileLoader):
+    """Loads transactions from a CSV file."""
+
+    def parse_file(self, filepath: str) -> list[Transaction]:
+        self.skipped_count = 0
+        transactions = []
+
+        try:
+            with open(filepath, mode="r", newline="", encoding="utf-8") as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    try:
+                        tx = self._build_transaction(row)
+                        transactions.append(tx)
+                    except (ValueError, KeyError, TypeError, InvalidTransactionError):
+                        self.skipped_count += 1
+                        continue
+        except FileNotFoundError:
+            return []
+
+        return transactions
+
+
+class JSONLoader(FileLoader):
+    """Loads transactions from a JSON file."""
+
+    def parse_file(self, filepath: str) -> list[Transaction]:
+        self.skipped_count = 0
+        transactions = []
+
+        try:
+            with open(filepath, mode="r", encoding="utf-8") as file:
+                data = json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+        if not isinstance(data, list):
+            return []
+
+        for record in data:
+            try:
+                tx = self._build_transaction(record)
+                transactions.append(tx)
+            except (ValueError, KeyError, TypeError, InvalidTransactionError):
+                self.skipped_count += 1
+                continue
+
+        return transactions
