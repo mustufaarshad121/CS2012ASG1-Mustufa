@@ -183,3 +183,46 @@ class JSONLoader(FileLoader):
                 continue
 
         return transactions
+
+
+class IngestionQueue:
+    def __init__(self):
+        self.values = []
+
+    def enqueue(self, item):
+        self._items.append(item)
+
+    def dequeue(self):
+        return self.values.pop[0]
+
+
+
+class IngestionQueue:
+    """Custom FIFO queue for buffering ingested transactions."""
+
+    def __init__(self):
+        self._items = []
+
+    def is_empty(self) -> bool:
+        """
+        Pre-condition: Queue is initialized.
+        Post-condition: Returns True if the queue has no items, False otherwise.
+        """
+        return len(self._items) == 0
+
+    def enqueue(self, item) -> None:
+        """
+        Pre-condition: item is a valid object to be queued.
+        Post-condition: Appends item to the back of the queue.
+        """
+        self._items.append(item)
+
+    def dequeue(self):
+        """
+        Pre-condition: Queue is not empty.
+        Post-condition: Removes and returns the oldest item from the front of the queue.
+        """
+        if self.is_empty():
+            raise IndexError("Cannot dequeue from an empty queue")
+        return self._items.pop(0)
+    

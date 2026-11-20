@@ -4,7 +4,7 @@ from backend import (Transaction,
                      InvalidTransactionError, 
                      FileLoader,
                      CSVLoader,
-                     JSONLOADER,
+                     JSONLoader,
                      )
 
 try:
@@ -65,7 +65,7 @@ csv_txs = csv_loader.parse_file("data/Transactions.csv")
 print(f"CSV Loaded: {len(csv_txs)}, Skipped: {csv_loader.skipped_count}")
 
 #JsoN
-json_loader = JSONLOADER()
+json_loader = JSONLoader()
 json_txs = json_loader.parse_file("data/Transactions.json")
 print(f"JSON Loaded: {len(json_txs)}, Skipped: {json_loader.skipped_count}")
 
