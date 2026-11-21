@@ -246,6 +246,38 @@ class FilterHistoryStack:
 
 
 
+class AuditNode:
+    def __init__(self, record: tuple):
+        self.record = record
+        self.next = None
+class ExportAuditLinkedList:
+    """Custom singly linked list for storing chronological audit trail records."""
+    def __init__(self):
+        self.head = None
+
+    def append(self, record: tuple) -> None:
+        """
+        Pre-condition: record is a 4-tuple (timestamp, action_type, record_count, net_amount).
+        Post-condition: Appends a new AuditNode containing record to the tail of the linked list.
+        """
+        new_node = AuditNode(record)
+        if self.head is None:
+            self.head = new_node
+            return
+
+    def get_all_records(self) -> list[tuple]:
+        """
+        Pre-condition: Linked list is initialized.
+        Post-condition: Traverses from head to tail and returns all audit records in insertion order.
+        """
+        records = []
+        current = self.head
+        while current is not None:
+            current.record = records
+            current = current.next
+            return records
+
+
         
 
     
