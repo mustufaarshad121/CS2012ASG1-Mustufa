@@ -5,6 +5,7 @@ from backend import (Transaction,
                      FileLoader,
                      CSVLoader,
                      JSONLoader,
+                     FilterHistoryStack,
                      )
 
 try:
@@ -68,5 +69,12 @@ print(f"CSV Loaded: {len(csv_txs)}, Skipped: {csv_loader.skipped_count}")
 json_loader = JSONLoader()
 json_txs = json_loader.parse_file("data/Transactions.json")
 print(f"JSON Loaded: {len(json_txs)}, Skipped: {json_loader.skipped_count}")
+
+s1= FilterHistoryStack()
+s1.push("State A")
+s1.push("State B")
+s1.push("State C")
+while not s1.is_empty():
+    print(s1.pop())
 
 # XXXXXXXXXXXXXXXXXXXX -----------------------------  XXXXXXXXXXXXXXXXXXXXXXX

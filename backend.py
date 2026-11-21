@@ -186,18 +186,6 @@ class JSONLoader(FileLoader):
 
 
 class IngestionQueue:
-    def __init__(self):
-        self.values = []
-
-    def enqueue(self, item):
-        self._items.append(item)
-
-    def dequeue(self):
-        return self.values.pop[0]
-
-
-
-class IngestionQueue:
     """Custom FIFO queue for buffering ingested transactions."""
 
     def __init__(self):
@@ -225,4 +213,39 @@ class IngestionQueue:
         if self.is_empty():
             raise IndexError("Cannot dequeue from an empty queue")
         return self._items.pop(0)
+
+# cpy-333
+class FilterHistoryStack:
+    """Custom LIFO stack for storing previous filter states."""
+
+    def __init__(self):
+        self._items = []
+
+    def is_empty(self) -> bool:
+        """
+        Pre-condition: Stack is initialized.
+        Post-condition: Returns True if the stack has no items, False otherwise.
+        """
+        return len(self._items) == 0
+
+    def push(self, state) -> None:
+        """
+        Pre-condition: state is a valid filter state snapshot (e.g., (city, date, tx_type)).
+        Post-condition: Pushes state onto the top of the stack.
+        """
+        self._items.append(state)
+
+    def pop(self):
+        """
+        Pre-condition: Stack is not empty.
+        Post-condition: Removes and returns the most recently pushed filter state from the top of the stack.
+        """
+        if self.is_empty():
+            raise IndexError("Cannot pop from an empty stack")
+        return self._items.pop()
+
+
+
+        
+
     
