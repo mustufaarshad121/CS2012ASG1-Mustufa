@@ -3,6 +3,9 @@ import math
 from datetime import datetime
 import csv
 import json
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 from abc import ABC, abstractmethod
 
 
@@ -405,6 +408,7 @@ class FinPayEngine:
         Post-condition: Saves active filter if non-default, resets filter to All,
                         restores full transaction list, logs CLEAR event, and returns it.
         """
+        # Design choice: push active filter before resetting to "All" so Revert can also undo a Clear.
         if self.current_filter != ("All", "All", "All"):
             self.filter_stack.push(self.current_filter)
 
@@ -416,40 +420,52 @@ class FinPayEngine:
         self.audit_log.append((timestamp, "CLEAR", len(self.displayed_transactions), net_amount))
         return self.displayed_transactions
 
-    def export(self, csv_filepath: str = "exported_transactions.csv", audit_filepath: str = "audit_log.txt") -> None:
+    def export(self, csv_filepath: str | None = None, audit_filepath: str | None = None) -> tuple[str, str]:
         """
         Pre-condition: FinPayEngine is initialized.
         Post-condition: Exports displayed_transactions to CSV with CPY-0000/cpy-333 markers,
                         logs EXPORT event, and writes the full audit linked list to audit_log.txt.
         """
-        with open(csv_filepath, mode="w", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=["City", "Date", "Time", "Type", "Amount", "Status"])
-            writer.writeheader()
+        if csv_filepath is None:
+            csv_filepath = os.path.join(BASE_DIR, "exported_transactions.csv")
+        if audit_filepath is None:
+            audit_filepath = os.path.join(BASE_DIR, "audit_log.txt")
 
-            for tx in self.displayed_transactions:
-                tx_type = "Credit" if isinstance(tx, CreditTransaction) else "Debit"
+        try:
+            with open(csv_filepath, mode="w", newline="", encoding="utf-8") as file:
+                writer = csv.DictWriter(file, fieldnames=["City", "Date", "Time", "Type", "Amount", "Status"])
+                writer.writeheader()
+
+                for tx in self.displayed_transactions:
+                    tx_type = "Credit" if isinstance(tx, CreditTransaction) else "Debit"
+                    writer.writerow({
+                        "City": tx.city,
+                        "Date": tx.date,
+                        "Time": tx.time,
+                        "Type": tx_type,
+                        "Amount": tx.amount,
+                        "Status": tx.status,
+                    })
+
                 writer.writerow({
-                    "City": tx.city,
-                    "Date": tx.date,
-                    "Time": tx.time,
-                    "Type": tx_type,
-                    "Amount": tx.amount,
-                    "Status": tx.status,
+                    "City": "CPY-0000",
+                    "Date": "",
+                    "Time": "",
+                    "Type": "",
+                    "Amount": "",
+                    "Status": "cpy-333",
                 })
 
-            writer.writerow({
-                "City": "CPY-0000",
-                "Date": "",
-                "Time": "",
-                "Type": "",
-                "Amount": "",
-                "Status": "cpy-333",
-            })
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
+            self.audit_log.append((timestamp, "EXPORT", len(self.displayed_transactions), net_amount))
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
-        self.audit_log.append((timestamp, "EXPORT", len(self.displayed_transactions), net_amount))
+            with open(audit_filepath, mode="w", encoding="utf-8") as log_file:
+                log_file.write("# cpy-333\n")
+                for ts, action, count, net in self.audit_log.get_all_records():
+                    log_file.write(f"[{ts}] {action} | Records: {count} | Net Impact: PKR {net:.2f}\n")
 
-        with open(audit_filepath, mode="w", encoding="utf-8") as log_file:
-            for ts, action, count, net in self.audit_log.get_all_records():
-                log_file.write(f"[{ts}] {action} | Records: {count} | Net Impact: PKR {net:.2f}\n")
+        except OSError as exc:
+            raise RuntimeError(f"Failed to export files (ensure files are not open in another program): {exc}") from exc
+
+        return (csv_filepath, audit_filepath)
