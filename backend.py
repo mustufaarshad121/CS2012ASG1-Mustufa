@@ -341,4 +341,115 @@ class FinPayEngine:
 
         return (len(parsed), loader.skipped_count)
 
-    
+
+    def apply_filters(self, city: str, date: str, tx_type: str) -> list[Transaction]:
+        """
+        Pre-condition: city, date, and tx_type are valid filter strings (or 'All').
+        Post-condition: Pushes previous filter state to stack, filters all_transactions into
+                        displayed_transactions, logs FILTER event, and returns displayed_transactions.
+        """
+        self.filter_stack.push(self.current_filter)
+        self.current_filter = (city, date, tx_type)
+
+        filtered = []
+        for tx in self.all_transactions:
+            city_match = (city == "All" or tx.city == city)
+            date_match = (date == "All" or tx.date == date)
+            type_match = (
+                tx_type == "All"
+                or (tx_type == "Credit" and isinstance(tx, CreditTransaction))
+                or (tx_type == "Debit" and isinstance(tx, DebitTransaction))
+            )
+            if city_match and date_match and type_match:
+                filtered.append(tx)
+
+        self.displayed_transactions = filtered
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
+        self.audit_log.append((timestamp, "FILTER", len(self.displayed_transactions), net_amount))
+        return self.displayed_transactions
+
+
+    def revert_last_filter(self) -> tuple[str, str, str]:
+        if self.filter_stack.is_empty():
+            raise IndexError("No previous filter state to revert to")
+
+
+        prev_city, prev_date, prev_type = self.filter_stack.pop()
+        self.current_filter = (prev_city, prev_date, prev_type)
+       
+
+        filtered = []
+        for tx in self.all_transactions:
+            city_match = (prev_city == "All" or tx.city == prev_city)
+            date_match = (prev_date == "All" or tx.date == prev_date)
+            type_match = (
+                prev_type == "All"
+                or (prev_type == "Credit" and isinstance(tx, CreditTransaction))
+                or (prev_type == "Debit" and isinstance(tx, DebitTransaction))
+            )
+            if city_match and date_match and type_match:
+                filtered.append(tx)
+
+        self.displayed_transactions = filtered
+
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
+        self.audit_log.append((timestamp, "REVERT", len(self.displayed_transactions), net_amount))
+        return self.current_filter
+
+    def clear_filters(self) -> list[Transaction]:
+        """
+        Pre-condition: FinPayEngine is initialized.
+        Post-condition: Saves active filter if non-default, resets filter to All,
+                        restores full transaction list, logs CLEAR event, and returns it.
+        """
+        if self.current_filter != ("All", "All", "All"):
+            self.filter_stack.push(self.current_filter)
+
+        self.current_filter = ("All", "All", "All")
+        self.displayed_transactions = list(self.all_transactions)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
+        self.audit_log.append((timestamp, "CLEAR", len(self.displayed_transactions), net_amount))
+        return self.displayed_transactions
+
+    def export(self, csv_filepath: str = "exported_transactions.csv", audit_filepath: str = "audit_log.txt") -> None:
+        """
+        Pre-condition: FinPayEngine is initialized.
+        Post-condition: Exports displayed_transactions to CSV with CPY-0000/cpy-333 markers,
+                        logs EXPORT event, and writes the full audit linked list to audit_log.txt.
+        """
+        with open(csv_filepath, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=["City", "Date", "Time", "Type", "Amount", "Status"])
+            writer.writeheader()
+
+            for tx in self.displayed_transactions:
+                tx_type = "Credit" if isinstance(tx, CreditTransaction) else "Debit"
+                writer.writerow({
+                    "City": tx.city,
+                    "Date": tx.date,
+                    "Time": tx.time,
+                    "Type": tx_type,
+                    "Amount": tx.amount,
+                    "Status": tx.status,
+                })
+
+            writer.writerow({
+                "City": "CPY-0000",
+                "Date": "",
+                "Time": "",
+                "Type": "",
+                "Amount": "",
+                "Status": "cpy-333",
+            })
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        net_amount = sum(tx.get_net_impact() for tx in self.displayed_transactions)
+        self.audit_log.append((timestamp, "EXPORT", len(self.displayed_transactions), net_amount))
+
+        with open(audit_filepath, mode="w", encoding="utf-8") as log_file:
+            for ts, action, count, net in self.audit_log.get_all_records():
+                log_file.write(f"[{ts}] {action} | Records: {count} | Net Impact: PKR {net:.2f}\n")
