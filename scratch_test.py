@@ -115,25 +115,33 @@ except TypeError as e:
 engine = FinPayEngine()
 loaded, skipped = engine.load_data("data/Transactions.csv")
 net_total = sum(tx.get_net_impact() for tx in engine.all_transactions)
-print(f"Engine Loaded: {loaded}, Skipped: {skipped}, Net Impact: {net_total}")
-print("Unique Cities:", engine.unique_cities)
-print("Unique Dates:", engine.unique_dates)
+print(f"1. Loaded: {loaded}, Skipped: {skipped}, Net: {net_total}, Cities ({len(engine.unique_cities)}): {engine.unique_cities}")
 
-# Test 1: Apply two filters in sequence
-engine.apply_filters("Karachi", "All", "All")
-print("After Karachi filter:", len(engine.displayed_transactions))
+# 2. Filter by city Karachi -> 2 rows
+karachi_rows = engine.apply_filters("Karachi", "All", "All")
+print(f"2. Karachi rows: {len(karachi_rows)}")
 
+# 3. Apply second filter, then revert -> back on Karachi list (2 rows)
 engine.apply_filters("Karachi", "All", "Credit")
-print("After Karachi + Credit filter:", len(engine.displayed_transactions))
+reverted_filter = engine.revert_last_filter()
+print(f"3. Reverted filter: {reverted_filter}, Rows: {len(engine.displayed_transactions)}")
 
-# Test 2: Revert last filter (should go back to Karachi + All)
-restored = engine.revert_last_filter()
-print("Reverted to:", restored, "| Count:", len(engine.displayed_transactions))
+# 4. Revert until empty stack -> clean IndexError, no crash
+engine.revert_last_filter()  # pops ("All", "All", "All")
+try:
+    engine.revert_last_filter()
+except IndexError as e:
+    print(f"4. Empty stack revert caught cleanly: {e}")
 
-# Test 3: Clear filters (should return all 9)
+# 5. Clear, then export -> check both output files
+engine.apply_filters("Lahore", "All", "All")
 engine.clear_filters()
-print("After clear_filters:", len(engine.displayed_transactions))
+csv_out, log_out = engine.export()
+print(f"5. Exported to:\n   {csv_out}\n   {log_out}")
 
-# Test 4: Export CSV + audit_log.txt
-engine.export()
-print("Exported CSV and audit_log.txt successfully!")
+# 6. Missing file and .txt file -> clear errors, no crash
+for bad_path in ["data/does_not_exist.csv", "data/notes.txt"]:
+    try:
+        engine.load_data(bad_path)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"6. Caught expected error for {bad_path}: {e}")
