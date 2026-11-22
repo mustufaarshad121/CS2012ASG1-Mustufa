@@ -1,5 +1,6 @@
 # cpy-333
 import math
+from datetime import datetime
 import csv
 import json
 from abc import ABC, abstractmethod
@@ -247,11 +248,16 @@ class FilterHistoryStack:
 
 
 class AuditNode:
+    """Node in a singly linked list holding a 4-tuple (timestamp, action_type, record_count, net_amount)."""
+
     def __init__(self, record: tuple):
         self.record = record
         self.next = None
+
+
 class ExportAuditLinkedList:
     """Custom singly linked list for storing chronological audit trail records."""
+
     def __init__(self):
         self.head = None
 
@@ -265,6 +271,11 @@ class ExportAuditLinkedList:
             self.head = new_node
             return
 
+        current = self.head
+        while current.next is not None:
+            current = current.next
+        current.next = new_node
+
     def get_all_records(self) -> list[tuple]:
         """
         Pre-condition: Linked list is initialized.
@@ -273,11 +284,61 @@ class ExportAuditLinkedList:
         records = []
         current = self.head
         while current is not None:
-            current.record = records
+            records.append(current.record)
             current = current.next
-            return records
+        return records
 
 
-        
+class FinPayEngine:
+    """Core backend engine coordinating ingestion, filtering, state history, and audit logging."""
+
+    def __init__(self):
+        self.all_transactions = []
+        self.displayed_transactions = []
+        self.unique_cities = set()
+        self.unique_dates = set()
+        self.ingestion_queue = IngestionQueue()
+        self.filter_stack = FilterHistoryStack()
+        self.audit_log = ExportAuditLinkedList()
+        self.current_filter = ("All", "All", "All")
+
+    def load_data(self, filepath: str) -> tuple[int, int]:
+        """
+        Pre-condition: filepath points to a .csv or .json transaction file.
+        Post-condition: Loads valid transactions via IngestionQueue, updates sets, logs LOAD event,
+                        and returns (loaded_count, skipped_count).
+        """
+        _, ext = os.path.splitext(filepath)
+        ext = ext.lower()
+
+        if ext == ".csv":
+            loader = CSVLoader()
+        elif ext == ".json":
+            loader = JSONLoader()
+        else:
+            raise ValueError(f"Unsupported file format: {ext}")
+
+        parsed = loader.parse_file(filepath)
+
+        for tx in parsed:
+            self.ingestion_queue.enqueue(tx)
+
+        while not self.ingestion_queue.is_empty():
+            self.all_transactions.append(self.ingestion_queue.dequeue())
+
+        self.displayed_transactions = list(self.all_transactions)
+        self.current_filter = ("All", "All", "All")
+
+        self.unique_cities.clear()
+        self.unique_dates.clear()
+        for tx in self.all_transactions:
+            self.unique_cities.add(tx.city)
+            self.unique_dates.add(tx.date)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        net_amount = sum(tx.get_net_impact() for tx in parsed)
+        self.audit_log.append((timestamp, "LOAD", len(parsed), net_amount))
+
+        return (len(parsed), loader.skipped_count)
 
     
