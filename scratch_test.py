@@ -6,6 +6,9 @@ from backend import (Transaction,
                      CSVLoader,
                      JSONLoader,
                      FilterHistoryStack,
+                     IngestionQueue, 
+                     ExportAuditLinkedList, 
+                     FinPayEngine,
                      )
 
 try:
@@ -78,3 +81,59 @@ while not s1.is_empty():
     print(s1.pop())
 
 # XXXXXXXXXXXXXXXXXXXX -----------------------------  XXXXXXXXXXXXXXXXXXXXXXX
+q = IngestionQueue()
+for item in ["a", "b", "c"]:
+    q.enqueue(item)
+
+while not q.is_empty():
+    print("Dequeued:", q.dequeue())
+
+try:
+    q.dequeue()
+except IndexError as e:
+    print(f"Success! Caught IndexError on empty queue: {e}")
+
+# --- ExportAuditLinkedList Tests ---
+audit = ExportAuditLinkedList()
+print("Empty audit list:", audit.get_all_records())
+
+audit.append(("2026-10-18 09:00:00", "LOAD", 9, 85548.75))
+audit.append(("2026-10-18 09:05:00", "FILTER", 3, 12000.0))
+audit.append(("2026-10-18 09:10:00", "EXPORT", 3, 12000.0))
+
+records = audit.get_all_records()
+print("Audit records count:", len(records))
+for rec in records:
+    print(" ", rec)
+
+try:
+    records[0][0] = "x"
+except TypeError as e:
+    print(f"Success! Tuple immutability verified: {e}")
+
+# --- FinPayEngine End-to-End Tests ---
+engine = FinPayEngine()
+loaded, skipped = engine.load_data("data/Transactions.csv")
+net_total = sum(tx.get_net_impact() for tx in engine.all_transactions)
+print(f"Engine Loaded: {loaded}, Skipped: {skipped}, Net Impact: {net_total}")
+print("Unique Cities:", engine.unique_cities)
+print("Unique Dates:", engine.unique_dates)
+
+# Test 1: Apply two filters in sequence
+engine.apply_filters("Karachi", "All", "All")
+print("After Karachi filter:", len(engine.displayed_transactions))
+
+engine.apply_filters("Karachi", "All", "Credit")
+print("After Karachi + Credit filter:", len(engine.displayed_transactions))
+
+# Test 2: Revert last filter (should go back to Karachi + All)
+restored = engine.revert_last_filter()
+print("Reverted to:", restored, "| Count:", len(engine.displayed_transactions))
+
+# Test 3: Clear filters (should return all 9)
+engine.clear_filters()
+print("After clear_filters:", len(engine.displayed_transactions))
+
+# Test 4: Export CSV + audit_log.txt
+engine.export()
+print("Exported CSV and audit_log.txt successfully!")
